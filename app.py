@@ -20,7 +20,11 @@ creds = Credentials.from_service_account_info(
 def load_data():
     client = gspread.authorize(creds)
     sheet = client.open("Puslespill").sheet1
-    return pd.DataFrame(sheet.get_all_records())
+    df = pd.DataFrame(sheet.get_all_records())
+
+    df = df.sort_values("Barcode", ascending=True).reset_index(drop=True)
+    return df
+
 
 df = load_data()
 
