@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from streamlit_javascript import st_javascript
 
 st.set_page_config(page_title="Puslespill View", layout="wide")
 st.title("Puslespill View")
@@ -28,6 +29,17 @@ def load_data():
 
 df = load_data()
 
+if "is_mobile" not in st.session_state:
+    is_narrow = st_javascript("""
+        (function() {
+            const w = window.innerWidth || document.documentElement.clientWidth;
+            return w <= 850;
+        })();
+    """)
+    st.session_state.is_mobile = is_narrow is True  
+
+is_mobile = st.session_state.is_mobile
+
 search_query = st.text_input(
     "Søk etter strekkode (EAN)",
     value="",
@@ -50,27 +62,41 @@ else:
     display_df = df
     st.info(f"Totalt {len(display_df)} puslespill i listen")
     
-st.write("Data lastet fra Google Sheets:")
-st.dataframe(
-    display_df,
-    height=700,
-    hide_index=True,
-    width="stretch",
-    column_config={
-        "Barcode": st.column_config.TextColumn("EAN / Strekkode"),
-        "Bilde1": st.column_config.ImageColumn(
-            "Bilde 1",
-            width="auto",
-            help="Første produktbilde"
-        ),
-        "Bilde2": st.column_config.ImageColumn(
-            "Bilde 2",
-            width="auto",
-        ),
-        "Bilde3": st.column_config.ImageColumn(
-            "Bilde 3",
-            width="auto",
-        ),
-    },
-)
+if is_mobile:
+    for _, row in display_df.iterrows():
+        with st.container(border=True):
+            cols = st.columns([1, 3])   
+            with cols[0]:
+                if row.get("Bilde1"):
+                    st.image(row["Bilde1"], width=120)
+            with cols[1]:
+                st.markdown(f"**EAN:** {row['Barcode']}")
+                st.markdown(f"**Tittel:** {row.get('Tittel','–')}")
+
+else:
+    st.dataframe(
+        display_df,
+        height=700,
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Barcode": st.column_config.TextColumn("EAN / Strekkode"),
+            "Bilde1": st.column_config.ImageColumn(
+                "Bilde 1",
+                width="medium",   
+                help="Første produktbilde"
+            ),
+            "Bilde2": st.column_config.ImageColumn(
+                "Bilde 2",
+                width="medium",
+            ),
+            "Bilde3": st.column_config.ImageColumn(
+                "Bilde 3",
+                width="medium",
+            ),
+        },
+    )
+
+if st.toggle("Vis debug-info (skjermbredde)", False):
+    st.caption(f"Screen detected as mobile = **{is_mobile}**")
 
